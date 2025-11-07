@@ -6,7 +6,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import { Canvas, Image as FabricImage } from 'fabric';
+import { Canvas, FabricImage, StaticCanvas } from 'fabric';
 
 const canvasElement = ref(null);
 let fabricCanvas = null;
@@ -97,10 +97,107 @@ const deleteActiveObject = () => {
   }
 };
 
+const exportOriginalSizeDataURL = (originalImageElement) => {
+  try {
+    if (!fabricCanvas || !originalImageElement) {
+      console.error('exportOriginalSizeDataURL: 引数が不足しています');
+      return null;
+    }
+
+    // 1. オリジナル解像度
+    const originalWidth = originalImageElement.naturalWidth;
+    const originalHeight = originalImageElement.naturalHeight;
+
+    // 2. 現在の表示サイズ
+    const currentWidth = fabricCanvas.width;
+
+    // 3. スケーリング比率
+    const ratio = originalWidth / currentWidth;
+    
+    if (ratio <= 0 || !isFinite(ratio)) {
+      console.error('無効なスケーリング比率です', ratio);
+      return null;
+    }
+
+    // 4. メモリ上に元サイズの StaticCanvas を作成
+    const staticCanvas = new StaticCanvas(null, {
+      width: originalWidth,
+      height: originalHeight
+    });
+
+    // 5. 背景画像を手動で「再構築」
+    const bgImage = fabricCanvas.backgroundImage;
+    if (bgImage) {
+      // getElement() で <img> 要素を取得
+      const bgImgElement = bgImage.getElement();
+      const newBgScale = bgImage.scaleX * ratio;
+      
+      // <img> 要素から新しい FabricImage を作成
+      const newBg = new FabricImage(bgImgElement, {
+        scaleX: newBgScale,
+        scaleY: newBgScale
+      });
+      staticCanvas.backgroundImage = newBg;
+    }
+
+    // 6. オブジェクト（推し）を個別に「再構築」
+    const objects = fabricCanvas.getObjects();
+    if (objects.length > 0) {
+      objects.forEach(obj => {
+        // 7. <img> 要素を取得 (FabricImage のみ)
+        if (obj.type === 'image' && obj.getElement) {
+          const oshiImgElement = obj.getElement();
+          
+          // 8. <img> とスケーリング済みのプロパティから新しい FabricImage を作成
+          const newOshi = new FabricImage(oshiImgElement, {
+            // スケーリングするプロパティ
+            left: obj.left * ratio,
+            top: obj.top * ratio,
+            scaleX: obj.scaleX * ratio,
+            scaleY: obj.scaleY * ratio,
+            
+            // そのままコピーするプロパティ
+            angle: obj.angle,
+            flipX: obj.flipX,
+            flipY: obj.flipY,
+            skewX: obj.skewX,
+            skewY: obj.skewY,
+            originX: obj.originX,
+            originY: obj.originY,
+            // ... (他にも必要なプロパティがあればここに追加)
+          });
+          
+          // 9. StaticCanvas に追加
+          staticCanvas.add(newOshi);
+        }
+      });
+    }
+
+    // 10. 最終描画
+    staticCanvas.renderAll();
+
+    // 11. 高解像度のData URLを生成
+    const dataUrl = staticCanvas.toDataURL({
+      format: 'png',
+      quality: 1.0
+    });
+
+    // 12. メモリ解放
+    staticCanvas.dispose();
+
+    return dataUrl; // ★ 成功パス
+
+  } catch (error) {
+    console.error('exportOriginalSizeDataURL 内部でエラー:', error);
+    return null; // ★ 失敗パス
+  }
+};
+
 defineExpose({
   resizeAndSetBackground,
   addOshiImage,
-  deleteActiveObject
+  deleteActiveObject,
+  exportOriginalSizeDataURL
 });
 </script>
 

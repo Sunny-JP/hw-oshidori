@@ -1,6 +1,6 @@
 <template>
   <header>
-    <h1>推しと一緒！アプリ</h1>
+    <h1>推しふぉと！</h1>
   </header>
 
   <main class="main-content">
@@ -18,6 +18,9 @@
       </div>
 
       <div class="canvas-controls">
+        <button @click="handleSaveImage" class="save-btn">
+          画像を保存
+        </button>
         <button @click="deleteSelectedOshi" class="delete-selected-btn">
           選択した推しを削除
         </button>
@@ -189,6 +192,55 @@ const deleteSelectedOshi = () => {
   editor.value.deleteActiveObject();
 };
 
+const handleSaveImage = () => {
+  if (!editor.value) {
+    console.error('handleSaveImage: editor (ref) が見つかりません');
+    return;
+  }
+  
+  // ★ 保存する元画像のHTMLImageElementを取得
+  const originalImage = currentBgHtmlImage.value;
+  
+  if (!originalImage) {
+    console.error('handleSaveImage: 元の背景画像がありません');
+    alert('先に背景画像をセットしてください');
+    return;
+  }
+
+  try {
+    const dataUrl = editor.value.exportOriginalSizeDataURL(originalImage);
+    
+    if (!dataUrl) {
+      console.error('画像の書き出しに失敗しました (dataUrl is null)');
+      alert('画像の書き出しに失敗しました。');
+      return;
+    }
+    
+    // 1. 現在時刻からDateオブジェクトを生成
+    const now = new Date();
+
+    // 2. 各パーツを取得し、padStart(2, '0') で2桁（0埋め）にする
+    const year = now.getFullYear().toString().slice(-2); // 年(下2桁)
+    const month = (now.getMonth() + 1).toString().padStart(2, '0'); // 月 (0-11なので+1)
+    const day = now.getDate().toString().padStart(2, '0'); // 日
+    const hours = now.getHours().toString().padStart(2, '0'); // 時
+    const minutes = now.getMinutes().toString().padStart(2, '0'); // 分
+    const seconds = now.getSeconds().toString().padStart(2, '0'); // 秒
+
+    // 3. ご希望のフォーマットに組み立て
+    const fileName = `osph-${year}${month}${day}-${hours}${minutes}${seconds}.png`;
+
+    // 4. リンクを作成してダウンロード
+    const link = document.createElement('a');
+    link.download = fileName;
+    link.href = dataUrl;
+    link.click();
+    
+  } catch (error) {
+    console.error('handleSaveImage でエラーが発生しました:', error);
+    alert('画像の保存中にエラーが発生しました。');
+  }
+};
 
 const onBackgroundFileChange = (event) => {
   const file = event.target.files[0];
@@ -325,9 +377,25 @@ header h1 {
   flex-shrink: 0;
   display: flex;
   justify-content: flex-end; /* ボタンを右寄せ */
-  /* Canvasの真下に配置 */
+  gap: 12px; /* ★ ボタン間のスペース */
   margin-top: 12px;
   margin-bottom: 16px;
+  flex-wrap: wrap; 
+}
+
+.save-btn {
+  border: none;
+  background-color: #007aff; /* iOSの青色 */
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.save-btn:active {
+  background-color: #0056b3;
 }
 
 .delete-selected-btn {
