@@ -1,6 +1,6 @@
 <template>
   <div>
-    <canvas ref="canvasElement" width="600" height="400"></canvas>
+    <canvas ref="canvasElement"></canvas>
   </div>
 </template>
 
@@ -14,110 +14,93 @@ let fabricCanvas = null;
 onMounted(() => {
   if (canvasElement.value) {
     fabricCanvas = new Canvas(canvasElement.value, {
-      backgroundColor: '#eee'
+      width: 1,
+      height: 1,
+      backgroundColor: 'transparent'
     });
     console.log('Fabric.jsのCanvasを初期化しました');
-    fabricCanvas.renderAll();
   } else {
     console.error('onMounted: canvasElement が見つかりません');
   }
 });
 
-/**
- * URLから「推し画像」をCanvasに追加する
- * @param {String} imageUrl - Data URL
- */
 const addOshiImage = (imageUrl) => {
-  if (!fabricCanvas) {
-    console.error('addOshiImage: fabricCanvas が初期化されていません');
-    return;
-  }
+  if (!fabricCanvas) return;
   console.log('addOshiImage が呼ばれました');
-
-  // --- ▼▼▼ ここから修正 ▼▼▼ ---
   
-  // 1. Web標準の Image オブジェクトを作成
   const imgElement = new Image();
-  
-  // 2. 読み込み完了時の処理を先に定義
   imgElement.onload = () => {
-    console.log('推し画像の読み込み成功 (Image.onload)'); // ★表示されるはずのログ
-
-    // 3. 読み込んだHTML要素から FabricImage を作成
-    const fabricImg = new FabricImage(imgElement, {
-      scaleX: 200 / imgElement.width, // 幅200pxにスケール
-      scaleY: 200 / imgElement.width,
+    console.log('推し画像の読み込み成功 (Image.onload)');
+    const fabricImg = new FabricImage(imgElement);
+    
+    // Canvasのサイズに対して、いい感じのサイズに調整
+    // (例: Canvasの幅の 1/3 サイズにする)
+    const scale = (fabricCanvas.width * 0.33) / imgElement.naturalWidth;
+    
+    fabricImg.set({
       left: 100,
       top: 100,
+      scaleX: scale,
+      scaleY: scale,
     });
     
-    // 4. Canvasに追加して再描画
     fabricCanvas.add(fabricImg);
     fabricCanvas.renderAll();
     console.log('「推し」画像を追加しました');
   };
-
-  // 5. 読み込み失敗時の処理
-  imgElement.onerror = (err) => {
-    console.error('推し画像の読み込みに失敗 (Image.onerror)', err);
-  };
-
-  // 6. 最後に Data URL をセットして読み込みを開始
+  imgElement.onerror = (err) => { /* ... (省略) ... */ };
   imgElement.src = imageUrl;
-
-  // --- ▲▲▲ 修正ここまで ▲▲▲ ---
 };
 
-/**
- * Canvasの背景画像を設定する
- * @param {String} imageUrl - Data URL
- */
-const setBackgroundImage = (imageUrl) => {
+const resizeAndSetBackground = (dataUrl, imgElement, containerWidth) => {
   if (!fabricCanvas) {
-    console.error('setBackgroundImage: fabricCanvas が初期化されていません');
+    console.error('resizeAndSetBackground: fabricCanvas が初期化されていません');
     return;
   }
-  console.log('setBackgroundImage が呼ばれました');
+  console.log('resizeAndSetBackground が呼ばれました');
 
-  // 1. Web標準の Image オブジェクトを作成
-  const imgElement = new Image();
+  // 1. 新しいCanvasのサイズを計算
+  const imgRatio = imgElement.naturalHeight / imgElement.naturalWidth;
+  
+  // 親コンテナの幅(containerWidth)をそのままCanvasの幅として使用します
+  const newWidth = containerWidth;
+  const newHeight = newWidth * imgRatio;
 
-  // 2. 読み込み完了時の処理
-  imgElement.onload = () => {
-    console.log('背景画像の読み込み成功 (Image.onload)');
+  // 2. Fabric.jsのCanvasにサイズをセット
+  fabricCanvas.setDimensions({
+    width: newWidth,
+    height: newHeight
+  });
+  
+  // 3. <img> から FabricImage を作成
+  const fabricImg = new FabricImage(imgElement);
 
-    // 3. 読み込んだHTML要素から FabricImage を作成
-    const fabricImg = new FabricImage(imgElement);
+  // 4. 背景としてセット
+  fabricCanvas.backgroundColor = 'transparent'; // 以前の背景色をクリア
+  fabricCanvas.backgroundImage = fabricImg;
+  
+  // 5. 画像をCanvasの幅にフィットさせる
+  fabricImg.scaleToWidth(newWidth);
 
-    // --- ▼▼▼ ここから修正 ▼▼▼ ---
+  // 6. 変更をCanvasに反映
+  fabricCanvas.renderAll();
 
-    // 4. 背景としてセット (プロパティに直接代入)
-    fabricCanvas.backgroundImage = fabricImg;
-    
-    // 5. Canvasのサイズに画像をフィットさせる
-    fabricImg.scaleToWidth(fabricCanvas.width);
-    fabricImg.scaleToHeight(fabricCanvas.height);
+  console.log(`Canvasをリサイズしました: ${newWidth} x ${newHeight}`);
+};
 
-    // 6. 変更をCanvasに反映（強制再描画）
+const deleteActiveObject = () => {
+  if (!fabricCanvas) return;
+  const activeObject = fabricCanvas.getActiveObject();
+  if (activeObject) {
+    fabricCanvas.remove(activeObject);
     fabricCanvas.renderAll();
-
-    console.log('背景画像を設定しました');
-    
-    // --- ▲▲▲ 修正ここまで ▲▲▲ ---
-  };
-
-  // 5. 読み込み失敗時の処理
-  imgElement.onerror = (err) => {
-    console.error('背景画像の読み込みに失敗 (Image.onerror)', err);
-  };
-
-  // 6. 最後に Data URL をセットして読み込みを開始
-  imgElement.src = imageUrl;
+  }
 };
 
 defineExpose({
-  setBackgroundImage,
-  addOshiImage
+  resizeAndSetBackground,
+  addOshiImage,
+  deleteActiveObject
 });
 </script>
 
@@ -131,21 +114,11 @@ defineExpose({
     親要素 (App.vueの .canvas-wrapper) の
     サイズに追従するようにします
   */
-  width: 100% !important;
-  height: 100% !important;
-  max-width: 600px; /* 元のcanvas幅 */
-  max-height: 400px; /* 元のcanvas高さ */
+  max-width: 100%;
+  max-height: 100%;
 
   /* スマホ画面で縮小表示されたときもくっきりさせる */
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
-}
-
-/* fabric.js が操作する <canvas> 自体
-  (backgroundColor: '#eee' が適用される場所)
-*/
-:deep(canvas) {
-  width: 100% !important;
-  height: 100% !important;
 }
 </style>

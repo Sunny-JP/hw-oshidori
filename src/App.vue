@@ -5,78 +5,131 @@
 
   <main class="main-content">
     
-    <div class="canvas-wrapper">
-      <EditorCanvas ref="editor" />
-    </div>
-    
-    <div class="controls">
-      <h3>操作パネル</h3>
-      
-      <div>
-        <label for="bg-upload">1. 背景画像をDBに追加:</label> <input 
-          id="bg-upload"
-          type="file" 
-          accept="image/*" 
-          @change="onBackgroundFileChange"
-        />
+    <div class="main-column-left">
+      <div 
+        class="canvas-wrapper" 
+        ref="canvasWrapperRef" 
+        :class="{ 'has-image': canvasHasImage }"
+      >
+        <div v_if="!canvasHasImage" class="canvas-placeholder">
+          背景画像を読み込んでください
+        </div>
+        <EditorCanvas ref="editor" />
       </div>
 
-      <div>
-        <label for="oshi-upload">2. 推し画像をDBに追加:</label> <input 
-          id="oshi-upload"
-          type="file" 
-          accept="image/png, image/gif" 
-          @change="onOshiFileChange" />
-        <p>（透過PNG推奨）</p>
+      <div class="canvas-controls">
+        <button @click="deleteSelectedOshi" class="delete-selected-btn">
+          選択した推しを削除
+        </button>
       </div>
     </div>
-
-    <div class="gallery oshi-gallery"> <h3>推し画像ギャラリー</h3>
-      <p>（画像クリックでCanvasに追加 / 保存数: {{ oshiGallery.oshiList.value.length }}）</p> <div class="gallery-container">
-        <ul>
-          <li v-for="image in oshiGallery.oshiList.value" :key="image.id">
-            <img 
-              :src="createBlobUrl(image.data)" 
-              class="thumbnail"
-              @click="addOshiToCanvas(image.data)" />
-            <button class="delete-btn" @click="oshiGallery.deleteOshiImage(image.id)">×</button> </li>
-        </ul>
-      </div>
-    </div>
-    <div class="gallery">
-      <h3>背景画像ギャラリー</h3> <p>（画像クリックで背景セット / 保存数: {{ backgroundGallery.galleryList.value.length }}）</p> <div class="gallery-container">
-        <ul>
-          <li v-for="image in backgroundGallery.galleryList.value" :key="image.id"> 
-            <img 
-              :src="createBlobUrl(image.data)" 
-              class="thumbnail"
-              @click="setBackground(image.data)" 
+    <div class="main-column-right">
+      <div class="gallery oshi-gallery">
+        <div class="gallery-header">
+          <div class="gallery-header-info">
+            <h3>推し画像ギャラリー</h3>
+            <p>（クリックでCanvasに追加 / 保存数: {{ oshiGallery.oshiList.value.length }}）</p>
+          </div>
+          <div class="gallery-header-input">
+            <label for="oshi-upload" class="file-label">画像を追加</label>
+            <input 
+              id="oshi-upload"
+              class="file-input"
+              type="file" 
+              accept="image/png, image/gif" 
+              @change="onOshiFileChange"
             />
-            <button class="delete-btn" @click="backgroundGallery.deleteImage(image.id)">×</button> 
-          </li>
-        </ul>
+          </div>
+        </div>
+        <div class="gallery-container">
+          <ul>
+            <li v-for="image in oshiGallery.oshiList.value" :key="image.id">
+              <img 
+                :src="createBlobUrl(image.data)" 
+                class="thumbnail"
+                @click="addOshiToCanvas(image.data)"
+              />
+              <button class="delete-btn" @click="oshiGallery.deleteOshiImage(image.id)">×</button>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="gallery">
+        <div class="gallery-header">
+          <div class="gallery-header-info">
+            <h3>背景画像ギャラリー</h3>
+            <p>（クリックで背景セット / 保存数: {{ backgroundGallery.galleryList.value.length }}）</p>
+          </div>
+          <div class="gallery-header-input">
+            <label for="bg-upload" class="file-label">画像を追加</label>
+            <input 
+              id="bg-upload"
+              class="file-input"
+              type="file" 
+              accept="image/*" 
+              @change="onBackgroundFileChange"
+            />
+          </div>
+        </div>
+        <div class="gallery-container">
+          <ul>
+            <li v-for="image in backgroundGallery.galleryList.value" :key="image.id"> 
+              <img 
+                :src="createBlobUrl(image.data)" 
+                class="thumbnail"
+                @click="setBackground(image.data)" 
+              />
+              <button class="delete-btn" @click="backgroundGallery.deleteImage(image.id)">×</button>
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
-  </main>
+    </main>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import EditorCanvas from './components/EditorCanvas.vue';
-// ▼▼▼ 2つのストアをインポート ▼▼▼
 import { useBackgroundStore } from './composables/useBackgroundStore.ts';
 import { useOshiGallery } from './composables/useOshiStore.ts';
 
-// --------------------------------
-// ギャラリー機能 (IndexedDB)
-// --------------------------------
-// ▼▼▼ 2つのストアを呼び出す ▼▼▼
 const backgroundGallery = useBackgroundStore();
 const oshiGallery = useOshiGallery();
+const currentBgDataUrl = ref(null);
+const currentBgHtmlImage = ref(null);
+const editor = ref(null);
+const canvasWrapperRef = ref(null);
+const canvasHasImage = ref(false);
+
+const handleResize = () => {
+  // 必要な要素が揃っていない（背景がまだない等）場合は何もしない
+  if (!editor.value || !canvasWrapperRef.value || !currentBgDataUrl.value || !currentBgHtmlImage.value) {
+    return;
+  }
+
+  console.log('リサイズを検知');
+  
+  // 1. 新しいコンテナ幅を取得
+  const containerWidth = canvasWrapperRef.value.clientWidth;
+  
+  // 2. EditorCanvasのリサイズ関数を、保持している画像データで呼び出す
+  editor.value.resizeAndSetBackground(
+    currentBgDataUrl.value, 
+    currentBgHtmlImage.value, 
+    containerWidth
+  );
+};
 
 onMounted(() => {
   backgroundGallery.loadImages();
-  oshiGallery.loadOshiImages(); // ★推し画像も読み込む
+  oshiGallery.loadOshiImages();
+  window.addEventListener('resize', handleResize);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize);
 });
 
 const createBlobUrl = (blob) => {
@@ -93,78 +146,61 @@ const convertBlobToDataURL = (blob) => {
   });
 };
 
-// --------------------------------
-// Canvasコンポーネント
-// --------------------------------
-const editor = ref(null);
-
-/**
- * ギャラリーの画像をクリックしたときに背景をセットする
- */
-const setBackground = async (imageBlob) => {
-  if (!editor.value) {
-    console.error('setBackground: editor (ref) が見つかりません');
-    return;
-  }
-  console.log('setBackground が呼ばれました。');
-
-  try {
-    const dataUrl = await convertBlobToDataURL(imageBlob);
-    editor.value.setBackgroundImage(dataUrl);
-  } catch (error) {
-    console.error('背景画像の変換に失敗:', error);
-  }
+const loadHtmlImage = (dataUrl) => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = (err) => reject(err);
+    img.src = dataUrl;
+  });
 };
 
-// --- ▼▼▼ 新設 ▼▼▼ ---
-/**
- * 推しギャラリーの画像をクリックしたときにCanvasに追加する
- */
-const addOshiToCanvas = async (imageBlob) => {
-  if (!editor.value) {
-    console.error('addOshiToCanvas: editor (ref) が見つかりません');
+const setBackground = async (imageBlob) => {
+  if (!editor.value || !canvasWrapperRef.value) {
+    console.error('setBackground: editor または wrapper が見つかりません');
     return;
   }
-  console.log('addOshiToCanvas が呼ばれました。');
   
   try {
     const dataUrl = await convertBlobToDataURL(imageBlob);
-    // EditorCanvas.vue にある addOshiImage 関数を呼び出す
+    const imgElement = await loadHtmlImage(dataUrl);
+    const containerWidth = canvasWrapperRef.value.clientWidth;
+    currentBgDataUrl.value = dataUrl;
+    currentBgHtmlImage.value = imgElement;
+    editor.value.resizeAndSetBackground(dataUrl, imgElement, containerWidth);
+    canvasHasImage.value = true;
+  } catch (error) {
+    console.error('背景画像のセットに失敗:', error);
+  }
+};
+
+const addOshiToCanvas = async (imageBlob) => {
+  if (!editor.value) return;
+  try {
+    const dataUrl = await convertBlobToDataURL(imageBlob);
     editor.value.addOshiImage(dataUrl); 
   } catch (error) {
     console.error('推し画像の変換に失敗:', error);
   }
 };
-// --- ▲▲▲ 新設ここまで ▲▲▲ ---
+
+const deleteSelectedOshi = () => {
+  if (!editor.value) return;
+  editor.value.deleteActiveObject();
+};
 
 
-// --------------------------------
-// ファイル入力の処理
-// --------------------------------
-
-/**
- * 背景画像ファイルが選択されたときの処理
- */
 const onBackgroundFileChange = (event) => {
   const file = event.target.files[0];
   if (!file) return;
-  // ★背景ストアに追加
-  backgroundGallery.addImage(file); 
+  backgroundGallery.addImage(file);
   event.target.value = null;
 };
 
-/**
- * 推し画像ファイルが選択されたときの処理
- */
-const onOshiFileChange = async (event) => { // ★ async は不要になった
+const onOshiFileChange = (event) => {
   const file = event.target.files[0];
   if (!file) return;
-
-  // --- ▼▼▼ 修正 ▼▼▼ ---
-  // Canvasに直接追加するのではなく、Oshiストアに追加する
   oshiGallery.addOshiImage(file);
-  // --- ▲▲▲ 修正ここまで ---
-
   event.target.value = null;
 };
 </script>
@@ -211,63 +247,133 @@ header h1 {
 
 /* メインコンテンツエリア */
 .main-content {
-  flex-grow: 1; /* 残りの高さをすべて使う */
+  flex-grow: 1;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  gap: 0; /* gapは使わず、marginで制御 */
-  padding-bottom: 16px; /* 下端の余白 */
+  gap: 0;
+  padding-bottom: 16px;
   padding: 16px;
+}
+
+@media (min-width: 1024px) {
+  .main-content {
+    flex-direction: row; /* PCでは横並び */
+    gap: 24px;
+    overflow-y: hidden; /* PCでは親をスクロールさせない */
+  }
+
+  .main-column-left {
+    flex-grow: 1; /* 左カラム（Canvas）が幅を占める */
+    min-width: 0; /* 縮小できるように */
+    display: flex;
+    flex-direction: column;
+  }
+
+  .main-column-right {
+    flex-shrink: 0; /* 右カラム（操作部）は縮まない */
+    width: 380px; /* 右カラムの幅を固定 */
+    height: 100%; /* 親の高さに合わせる */
+    overflow-y: auto; /* ★ 右カラムだけをスクロールさせる */
+    
+    /* スクロールバーのスタイル（任意） */
+    scrollbar-width: thin;
+    scrollbar-color: #ccc #f4f4f9;
+  }
+  
+  /* PC時はギャラリー間のマージンを調整 */
+  .main-column-right .gallery {
+    margin-bottom: 24px;
+  }
 }
 
 /* --- Canvasエリア --- */
+/* --- 左カラム (Canvas周り) --- */
 .canvas-wrapper {
+  flex-grow: 1; /* PC時に高さを広げる */
   flex-shrink: 0;
   width: 100%;
-  height: 400px; /* Canvasの高さに合わせる */
-  max-height: 50vh; /* 画面の半分まで */
-
-  /* Canvas(600px)がはみ出たら横スクロールさせる
-    これがスマホ対応のキモです
-  */
-  overflow-x: auto;
   
-  background-color: #ddd; /* スクロール領域の背景 */
+  background-color: #eee;
   border-radius: 8px;
   box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+  min-height: 250px;
   
-  /* スクロールをスムーズに */
-  -webkit-overflow-scrolling: touch;
+  /* プレースホルダーテキスト用 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
-/* --- 操作パネル --- */
-.controls {
+/* 背景画像がセットされたら、プレースホルダーを隠す */
+.canvas-wrapper.has-image {
+  background-color: transparent;
+  min-height: 0;
+  align-items: flex-start; /* 左上に配置 */
+  justify-content: flex-start;
+}
+.canvas-placeholder {
+  color: #888;
+  font-size: 0.9rem;
+}
+.canvas-wrapper.has-image .canvas-placeholder {
+  display: none;
+}
+
+.canvas-controls {
   flex-shrink: 0;
-  background-color: #fff;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
   display: flex;
-  flex-direction: column;
-  gap: 16px;
+  justify-content: flex-end; /* ボタンを右寄せ */
+  /* Canvasの真下に配置 */
+  margin-top: 12px;
+  margin-bottom: 16px;
 }
 
-.controls h3 {
-  font-size: 1rem;
-  font-weight: 600;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 8px;
+.delete-selected-btn {
+  border: none;
+  background-color: #e53935; /* 赤系の削除ボタン */
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
-
-.controls div {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.delete-selected-btn:active {
+  background-color: #c62828;
 }
 
 /* --- ギャラリー --- */
+.gallery-header {
+  display: flex;
+  justify-content: space-between; /* 両端揃え */
+  align-items: center; /* 中央揃え */
+  margin-bottom: 12px;
+  gap: 16px;
+}
+.gallery-header-info {
+  flex-grow: 1; /* タイトル領域が伸びる */
+}
+.gallery-header-input {
+  flex-shrink: 0; /* ボタンは縮まない */
+}
+
+.gallery h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0; /* マージンリセット */
+}
+
+.gallery p {
+  font-size: 0.8rem;
+  color: #666;
+  margin: 0; /* マージンリセット */
+}
+
 .gallery {
-  flex-shrink: 0; /* 縮まない */
+  flex-shrink: 0;
   background-color: #fff;
   border-radius: 8px;
   padding: 16px;
@@ -275,21 +381,6 @@ header h1 {
   display: flex;
   flex-direction: column;
   margin-bottom: 16px;
-}
-
-.gallery h3 {
-  font-size: 1rem;
-  font-weight: 600;
-}
-.gallery p {
-  font-size: 0.8rem;
-  color: #666;
-  margin-bottom: 12px;
-}
-
-.gallery.oshi-gallery {
-  /* 推しギャラリーだけ少し背景色を変える（任意） */
-  background-color: #fdfdff;
 }
 
 .gallery-container {
@@ -345,18 +436,19 @@ header h1 {
   line-height: 1;
 }
 
-/* --- フォーム部品 --- */
-label {
-  font-size: 0.9rem;
-  font-weight: 500;
+/* --- ▼▼▼ 修正 (ファイル入力) ▼▼▼ --- */
+/* デフォルトのinputを隠す */
+.file-input {
+  width: 0.1px;
+  height: 0.1px;
+  opacity: 0;
+  overflow: hidden;
+  position: absolute;
+  z-index: -1;
 }
 
-input[type="file"] {
-  font-size: 0.9rem;
-}
-
-/* ファイル選択ボタンのスタイルを整える (任意) */
-input[type="file"]::file-selector-button {
+/* ラベルをボタン風にスタイリング */
+.file-label {
   border: none;
   background-color: #007aff;
   color: white;
@@ -365,9 +457,10 @@ input[type="file"]::file-selector-button {
   font-weight: 500;
   cursor: pointer;
   transition: background-color 0.2s;
+  font-size: 0.9rem;
+  display: inline-block;
 }
-
-input[type="file"]::file-selector-button:active {
+.file-label:active {
   background-color: #0056b3;
 }
 </style>
