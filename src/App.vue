@@ -1,6 +1,14 @@
 <template>
   <header>
     <h1>推しふぉと！</h1>
+    <button 
+      @click="toggleMenu" 
+      class="menu-button" 
+      :class="{ 'is-open': isMenuOpen }" aria-label="メニュー開閉"
+    >
+      <span class="material-symbols-rounded icon-menu">menu</span>
+      <span class="material-symbols-rounded icon-close">close</span>
+    </button>
   </header>
 
   <main class="main-content">
@@ -97,7 +105,29 @@
         </div>
       </div>
     </div>
-    </main>
+  </main>
+
+  <Transition name="fade">
+    <div
+      v-if="isMenuOpen"
+      class="sidebar-overlay"
+      @click="toggleMenu"
+    ></div>
+  </Transition>
+
+  <Transition name="slide">
+    <nav v-if="isMenuOpen" class="sidebar-menu">
+      <h2>メニュー</h2>
+      <ul>
+        <li>
+          <a href="#">設定</a>
+        </li>
+        <li>
+          <a href="#">利用規約</a>
+        </li>
+      </ul>
+    </nav>
+  </Transition>
 </template>
 
 <script setup>
@@ -113,6 +143,11 @@ const currentBgHtmlImage = ref(null);
 const editor = ref(null);
 const canvasWrapperRef = ref(null);
 const canvasHasImage = ref(false);
+const isMenuOpen = ref(false);
+
+const toggleMenu = () => {
+  isMenuOpen.value = !isMenuOpen.value;
+};
 
 const handleResize = () => {
   // 必要な要素が揃っていない（背景がまだない等）場合は何もしない

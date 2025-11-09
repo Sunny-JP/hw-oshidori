@@ -50,14 +50,9 @@ button {
 html,
 body,
 #app {
-  height: 100%;
   font-family: inherit;
   background-color: #f4f4f9;
   color: #333;
-}
-
-/* App shell for PWA-style layout */
-#app {
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -67,16 +62,128 @@ body,
 /* Header */
 header {
   flex-shrink: 0;
-  padding: 6px;
+  padding: 8px 20px;
   background-color: #fff;
   border-bottom: 1px solid #ddd;
-  text-align: center;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+  z-index: 1002;
 }
 
 header h1 {
   font-size: 1.2rem;
   font-weight: 600;
+  margin: 0;
+}
+
+.menu-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+  overflow: hidden;
+  width: 26px;
+  height: 26px;
+}
+
+.menu-button .material-symbols-rounded {
+  user-select: none;
+  color: #333;
+  font-size: 26px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+  transform: translate(-50%, -50%) scale(1) rotate(0deg);
+}
+
+.menu-button .icon-close {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.7) rotate(-90deg);
+}
+.menu-button .icon-menu {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1) rotate(0deg);
+}
+
+.menu-button.is-open .icon-close {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1) rotate(0deg);
+}
+.menu-button.is-open .icon-menu {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.7) rotate(90deg);
+}
+
+/* ===== Menu ===== */
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+}
+
+.sidebar-menu {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 200px;
+  max-width: 60%;
+  height: 100vh;
+  padding: 50px 15px 15px 15px;
+  background-color: #fff;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.15);
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-menu h2 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  padding: 6px 6px 6px 6px;
+  margin: 0 0 6px 0;
+  border-bottom: 1px solid #999;
+}
+.sidebar-menu ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.sidebar-menu li a {
+  display: block;
+  padding: 6px;
+  text-decoration: none;
+  color: #333;
+  border-bottom: 1px solid #f9f9f9;
+}
+.sidebar-menu li a:active {
+  background-color: #f0f0f0;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.slide-enter-active,
+.slide-leave-active {
+  transition: transform 0.25s ease-out;
+}
+.slide-enter-from,
+.slide-leave-to {
+  transform: translateX(100%);
 }
 
 /* ===== Main content & columns ===== */
